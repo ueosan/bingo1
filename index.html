@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Machine</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #content-wrapper {
+            position: relative;
+        }
+
+        #video-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* ビデオがコンテナにフィットするようにする */
+            z-index: -1; /* コンテンツよりも背面に配置する */
+        }
+
+        #bingo-container {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+            z-index: 1; /* コンテンツが背景の上に表示されるようにする */
+            color: #fff;
+        }
+
+        #number-log {
+            font-size: 2em; /* 数字ログのフォントサイズを大きく */
+            margin-bottom: 20px;
+        }
+
+        #bingo-number {
+            font-size: 5em; /* ビンゴ数字のフォントサイズを大きく */
+            color: #fff;
+            margin: 20px 0;
+            border: 2px solid #fff;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            background-color: #1976d2;
+        }
+
+
+        #controls {
+            margin-top: 20px;
+        }
+
+
+        button {
+            font-size: 1.5em; /* ボタンのフォントサイズを大きく */
+            padding: 15px 30px;
+            margin: 0 10px;
+            cursor: pointer;
+            background-color: #fff;
+            color: #1976d2;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        button:hover {
+            background-color: #1976d2; /* ホバー時の背景色を濃い青に変更 */
+            color: #fff; /* ホバー時の文字色を白に変更 */
+        }
+    </style>
+</head>
+<body>
+<div id="content-wrapper">
+<video id="video-background" autoplay muted loop>
+    <source src="vid/grid_-_82515 (1080p).mp4" type="video/mp4">
+    <!-- 追加のビデオフォーマットに対するソースも追加 -->
+    Your browser does not support the video tag.
+</video>
+
+<div id="bingo-container">
+    <div id="number-log"></div>
+    <div id="bingo-number">-</div>
+    <div id="controls">
+        <label for="max-number">最大のビンゴ数字：</label>
+        <input type="number" id="max-number" min="1" value="75">
+        <br>
+        <button onclick="drawNumber()">数字を引く</button>
+        <button onclick="resetBingo()">リセット</button>
+        <button onclick="toggleFullscreen()">全画面表示</button>
+    </div>
+</div>
+</div>
+<audio id="bingoSound" preload="auto">
+    <source src="SE/クイズ出題1.mp3" type="audio/mp3">
+    <!-- 追加のオーディオフォーマットに対するソースも追加 -->
+</audio>
+
+<script>
+    const numberLogElement = document.getElementById('number-log');
+    const bingoNumberElement = document.getElementById('bingo-number');
+    const maxNumberInput = document.getElementById('max-number');
+    const bingoSound = document.getElementById('bingoSound');
+
+    let drawnNumbers = [];
+
+    function drawNumber() {
+        const maxNumber = parseInt(maxNumberInput.value);
+        if (drawnNumbers.length >= maxNumber) {
+            alert('ビンゴ終了！');
+            return;
+        }
+
+        const drawDelay = 2000; // ワクワク感を出すための待機時間 (ミリ秒)
+
+        // ビンゴ数字が生成されるまでのアニメーション
+        setTimeout(() => {
+            let randomNumber;
+            do {
+                randomNumber = Math.floor(Math.random() * maxNumber) + 1;
+            } while (drawnNumbers.includes(randomNumber));
+
+            drawnNumbers.push(randomNumber);
+            updateNumberLog();
+            updateBingoNumber(randomNumber);
+            playBingoSound(); // SE再生
+        }, drawDelay);
+    }
+
+    function updateNumberLog() {
+        numberLogElement.textContent = drawnNumbers.join(', ');
+    }
+
+    function updateBingoNumber(number) {
+        bingoNumberElement.textContent = number;
+    }
+
+    function resetBingo() {
+        drawnNumbers = [];
+        updateNumberLog();
+        updateBingoNumber('-');
+    }
+
+    function toggleFullscreen() {
+        const elem = document.documentElement;
+        if (!document.fullscreenElement) {
+            elem.requestFullscreen().catch(err => {
+                alert(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    function playBingoSound() {
+        bingoSound.currentTime = 0; // 再生位置をリセット
+        bingoSound.play();
+    }
+</script>
+
+</body>
+</html>
