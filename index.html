@@ -6,15 +6,23 @@
     <title>Bingo Machine</title>
     <style>
         body {
-            font-family:'M PLUS Rounded',sans-serif;
+            font-family:'M PLUS Rounded', Arial, sans-serif;
             margin: 0;
             overflow: hidden;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
         }
-
+        #overlay-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
         #content-wrapper {
             position: relative;
         }
@@ -30,6 +38,7 @@
         }
 
         #bingo-container {
+           text-align: center;
             max-width: 600px;
             margin: 0 auto;
             text-align: center;
@@ -37,25 +46,42 @@
             color: #fff;
         }
 
+        #number-log-container {
+            /* 新しいスタイルを追加 */
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
         #number-log {
-            font-size: 2em; /* 数字ログのフォントサイズを大きく */
-            margin-bottom: 20px;
+            font-size: 3.5em; /* 数字ログのフォントサイズを大きく */
+            margin-bottom: 10px;
+            margin: 10px 0;
+            border: 5px solid #000;
+            padding: 10px;
+            border-radius: 30px;
+            background-color: #000;
+            white-space: nowrap;
+            overflow-y: scroll;
+	    opacity: 0.9; /* 半透明にする */
         }
 
         #bingo-number {
-            font-size: 5em; /* ビンゴ数字のフォントサイズを大きく */
+            font-size: 10em; /* ビンゴ数字のフォントサイズを大きく */
             color: #fff;
-            margin: 20px 0;
-            border: 2px solid #fff;
+            margin: 50px 0;
+            border: 10px solid #000;
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 150px;
             display: inline-block;
-            background-color: #1976d2;
+            background-color: #000;
+	    opacity: 0.9; /* 半透明にする */
         }
 
 
         #controls {
             margin-top: 20px;
+            z-index: 2; /* コンテンツよりも背面に配置する */
         }
 
 
@@ -65,16 +91,43 @@
             margin: 0 10px;
             cursor: pointer;
             background-color: #fff;
-            color: #1976d2;
+            color: #000;
             border: none;
             border-radius: 5px;
             transition: background-color 0.3s, color 0.3s;
         }
 
         button:hover {
-            background-color: #1976d2; /* ホバー時の背景色を濃い青に変更 */
-            color: #fff; /* ホバー時の文字色を白に変更 */
+            background-color: #000; /* ホバー時の背景色を変更 */
+            color: #fff; /* ホバー時の文字色を変更 */
         }
+        #bingo-number.flash {
+            animation: flash 0.5s ease-in-out;
+        }
+
+        @keyframes flash {
+            0%, 100% {
+                background-color: #000; /* 初期と最終の色 */
+                color: #fff;
+            }
+            50% {
+                background-color: #fff; /* 中間での色の変更 */
+                color: #000;
+            }
+        }
+
+        #video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 2; /* ビデオオーバーレイのz-indexを増やす */
+            display: none; /* 初期状態では非表示 */
+            opacity: 0.3; /* 半透明にする */
+        }
+
     </style>
 </head>
 <body>
@@ -85,40 +138,60 @@
     Your browser does not support the video tag.
 </video>
 
+    <!-- 追加のビデオ要素 -->
+<video id="video-overlay" preload="auto" autoplay muted>
+        <source src="vid/ライトリーク.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
 <div id="bingo-container">
-    <div id="number-log"></div>
     <div id="bingo-number">-</div>
     <div id="controls">
         <label for="max-number">最大のビンゴ数字：</label>
         <input type="number" id="max-number" min="1" value="75">
         <br>
-        <button onclick="drawNumber()">数字を引く</button>
+        <button id="draw-button" onclick="drawNumber()">数字を引く</button>
         <button onclick="resetBingo()">リセット</button>
         <button onclick="toggleFullscreen()">全画面表示</button>
     </div>
+<div><br>NEW ・・・これまでに出た数字は・・・ OLD</div>
+    <div id="number-log"></div>
 </div>
 </div>
 <audio id="bingoSound" preload="auto">
     <source src="SE/クイズ出題1.mp3" type="audio/mp3">
     <!-- 追加のオーディオフォーマットに対するソースも追加 -->
 </audio>
+<audio id="bingoSound1" preload="auto">
+    <source src="SE/ドラムロール.mp3" type="audio/mp3">
+    <!-- 追加のオーディオフォーマットに対するソースも追加 -->
+</audio>
 
 <script>
+    const drawButton = document.getElementById('draw-button');
     const numberLogElement = document.getElementById('number-log');
     const bingoNumberElement = document.getElementById('bingo-number');
     const maxNumberInput = document.getElementById('max-number');
     const bingoSound = document.getElementById('bingoSound');
-
+    const bingoSound1 = document.getElementById('bingoSound1');
     let drawnNumbers = [];
 
     function drawNumber() {
+        drawButton.disabled = true;
+
         const maxNumber = parseInt(maxNumberInput.value);
         if (drawnNumbers.length >= maxNumber) {
             alert('ビンゴ終了！');
+            // ボタンを有効にする
+            drawButton.disabled = false;
             return;
         }
+	playBingoSound1();
+        const drawDelay = 3800;
 
-        const drawDelay = 2000; // ワクワク感を出すための待機時間 (ミリ秒)
+        // ランダムな数字を表示
+        showRandomNumber(maxNumber);
+
 
         // ビンゴ数字が生成されるまでのアニメーション
         setTimeout(() => {
@@ -127,16 +200,38 @@
                 randomNumber = Math.floor(Math.random() * maxNumber) + 1;
             } while (drawnNumbers.includes(randomNumber));
 
-            drawnNumbers.push(randomNumber);
+            drawnNumbers.unshift(randomNumber);
             updateNumberLog();
-            updateBingoNumber(randomNumber);
-            playBingoSound(); // SE再生
+            updateBingoNumberWithEffect(randomNumber);
+            playBingoSound();
+            // ボタンを有効にする
+            drawButton.disabled = false;
         }, drawDelay);
     }
 
-    function updateNumberLog() {
-        numberLogElement.textContent = drawnNumbers.join(', ');
+    function showRandomNumber(maxNumber) {
+        const iterations = 39; // ランダムな数字を表示する回数
+
+        for (let i = 0; i < iterations; i++) {
+            setTimeout(() => {
+                const randomNum = Math.floor(Math.random() * maxNumber) + 1;
+                updateBingoNumber(randomNum);
+            }, i * 100); // 100ミリ秒ごとに切り替え
+        }
     }
+
+    function updateNumberLog() {
+        const log = drawnNumbers.join(' ');
+        numberLogElement.textContent = log;
+
+        // ログがはみ出た場合は右端で省略表示
+        if (numberLogElement.scrollWidth > numberLogElement.clientWidth) {
+            numberLogElement.title = log;
+        } else {
+            numberLogElement.title = '';
+        }
+    }
+
 
     function updateBingoNumber(number) {
         bingoNumberElement.textContent = number;
@@ -160,10 +255,33 @@
     }
 
     function playBingoSound() {
-        bingoSound.currentTime = 0; // 再生位置をリセット
+        bingoSound.currentTime = 0;
         bingoSound.play();
     }
-</script>
+    function playBingoSound1() {
+        bingoSound1.currentTime = 0;
+        bingoSound1.play();
+    }
+    function updateBingoNumberWithEffect(number) {
+        const bingoNumberElement = document.getElementById('bingo-number');
+        const videoOverlay = document.getElementById('video-overlay');
 
+        // オーバーレイ用のビデオを表示
+        videoOverlay.style.display = 'block';
+        videoOverlay.play();
+
+            updateBingoNumber(number);
+
+        bingoNumberElement.classList.add('flash'); // クラスを追加
+        setTimeout(() => {
+            bingoNumberElement.classList.remove('flash'); // クラスを削除
+
+            videoOverlay.style.display = 'none';
+            videoOverlay.pause();
+            videoOverlay.currentTime = 0; // 再生位置をリセット
+
+        }, 1000); // 0.5秒後にクラスを削除して通常の表示に戻す
+    }
+</script>
 </body>
 </html>
